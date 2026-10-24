@@ -583,16 +583,13 @@ jobs:
       - name: Enable KSU Syscall Tracepoint Hooks (KSU 3.2+ requires FTRACE_SYSCALLS)
         run: |
           cd kernel/common
-          found=0
-          for f in $(find arch -name 'gki_defconfig'); do
-            found=1
-            if ! grep -q '^CONFIG_FTRACE_SYSCALLS=' "$f"; then
-              echo "Adding CONFIG_FTRACE_SYSCALLS=y to $f"
-              echo 'CONFIG_FTRACE_SYSCALLS=y' >> "$f"
-            fi
-          done
-          if [ "$found" != "1" ]; then echo "ERROR: no gki_defconfig found under arch/"; exit 1; fi
-          find arch -name 'gki_defconfig' -exec grep -H 'FTRACE_SYSCALLS' {} \;
+          f=arch/x86/configs/gki_defconfig
+          grep -q '^CONFIG_BUG_ON_DATA_CORRUPTION=y$' "$f" || { echo "anchor line missing in $f"; exit 1; }
+          if ! grep -q '^CONFIG_FTRACE_SYSCALLS=' "$f"; then
+            echo "Inserting CONFIG_FTRACE_SYSCALLS=y at savedefconfig position in $f"
+            sed -i '/^CONFIG_BUG_ON_DATA_CORRUPTION=y$/a CONFIG_FTRACE_SYSCALLS=y' "$f"
+          fi
+          grep -n 'CONFIG_BUG_ON_DATA_CORRUPTION\|CONFIG_FTRACE_SYSCALLS\|CONFIG_HIST_TRIGGERS' "$f"
       - name: Build GKI Kernel
         run: |
           cd kernel
